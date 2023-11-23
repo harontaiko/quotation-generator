@@ -41,7 +41,6 @@
 }
 
 .download-pdf {
-  position: fixed;
   top: 100px;
   margin-left: -110px;
   width: 40px;
@@ -55,9 +54,11 @@
   a {
     display: block;
     position: relative;
-    left: 200%;
+    left: 1656%;
     width: 100%;
     height: 100%;
+    z-index: 100000;
+    bottom: 50%;
   }
 
   &:hover{
