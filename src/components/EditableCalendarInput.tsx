@@ -20,14 +20,15 @@ const EditableCalendarInput: FC<Props> = ({ className, value, selected, onChange
       ) : (
         <DatePicker
           className={'input ' + (className ? className : '')}
-          selected={selected || null} // Provide a default value if 'selected' is undefined
-          onChange={onChange ? (date) => onChange(date) : (date) => null}
+          selected={selected}
+          onChange={onChange ? (date) => (onChange ? onChange(date) : null) : () => null}
           dateFormat="MMM dd, yyyy"
         />
       )}
     </>
   );
 };
+
 
 
 export default EditableCalendarInput
