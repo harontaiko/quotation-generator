@@ -10,6 +10,18 @@ interface Props {
 const Download: FC<Props> = ({ data }) => {
   const [show, setShow] = useState<boolean>(false)
 
+  const [showCategoryModal, setShowCategoryModal] = useState(true);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]); 
+
+  const onCategoriesSelected = (categories: string[]) => {
+    setSelectedCategories(categories);
+    setShowCategoryModal(false);
+  };
+
+  const onShowCategoryModal = () => {
+    setShowCategoryModal(true);
+  };
+
   useEffect(() => {
     setShow(false)
 
@@ -24,7 +36,7 @@ const Download: FC<Props> = ({ data }) => {
     <div className={'download-pdf' + (!show ? 'loading' : '')} title="Save PDF">
       {show && (
         <PDFDownloadLink className='download-btn'
-          document={<InvoicePage pdfMode={true} data={data} />}
+          document={<InvoicePage onShowCategoryModal={onShowCategoryModal}  categories={selectedCategories}  pdfMode={true} data={data} />}
           fileName={`${data.invoiceTitle ? data.invoiceTitle.toLowerCase() : 'invoice'}.pdf`}
           aria-label="Save PDF"
         >Download

@@ -26,10 +26,12 @@ Font.register({
 interface Props {
   data?: Invoice
   pdfMode?: boolean
+  categories: string[]; 
   onChange?: (invoice: Invoice) => void
+  onShowCategoryModal: () => void;
 }
 
-const InvoicePage: FC<Props> = ({ data, pdfMode, onChange }) => {
+const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }) => {
   const [invoice, setInvoice] = useState<Invoice>(data ? { ...data } : { ...initialInvoice })
   const [subTotal, setSubTotal] = useState<number>()
   const [saleTax, setSaleTax] = useState<number>()
@@ -44,6 +46,10 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange }) => {
   if (invoice.invoiceDueDate === '') {
     invoiceDueDate.setDate(invoiceDueDate.getDate() + 30)
   }
+  
+  const handleGoToProductsModal = () => {
+    onShowCategoryModal();
+  };
 
   const handleChange = (name: keyof Invoice, value: string | number) => {
     if (name !== 'productLines') {
@@ -135,6 +141,40 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange }) => {
       onChange(invoice)
     }
   }, [onChange, invoice])
+
+  const getMyProductsFromLocalStorage = () => {
+    const storedMyProducts = JSON.parse(localStorage.getItem('myProducts') || '[]');
+    return storedMyProducts;
+  };
+  
+  const myProducts = getMyProductsFromLocalStorage();
+
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
+
+  const handleProductSelect = (productId: number | null) => {
+    setSelectedProductId(productId);
+  };
+
+  useEffect(() => {
+    if (selectedProductId !== null && !selectedProducts.includes(selectedProductId)) {
+      const product = myProducts.find((product: { id: number }) => product.id === selectedProductId);
+      if (product) {
+        const newProductLine = {
+          description: product.name,
+          quantity: '1', 
+          rate: product.price.toString(), 
+        };
+
+        setInvoice({
+          ...invoice,
+          productLines: [...invoice.productLines, newProductLine],
+        });
+
+        setSelectedProducts([...selectedProducts, selectedProductId]);
+      }
+    }
+  }, [selectedProductId, selectedProducts]);
 
   return (
     <Document pdfMode={pdfMode}>
@@ -296,6 +336,22 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange }) => {
           </View>
         </View>
 
+        <View className="mt-30 bg-secondary flex">
+        <select
+          value={selectedProductId || ''}
+          onChange={(e) => handleProductSelect(Number(e.target.value))}
+          disabled={pdfMode}
+        >
+          <option value="" disabled>Select a product</option>
+          {myProducts.map((product:any) => (
+            <option key={product.id} value={product.id}>{product.name}</option>
+          ))}
+        </select>
+        <button className='invoice-add-items' onClick={handleGoToProductsModal}>
+                <span className="icon icon-add bg-green mr-10"></span>
+                 New Item 
+              </button>
+        </View>         
         <View className="mt-30 bg-dark flex" pdfMode={pdfMode}>
           <View className="w-48 p-4-8" pdfMode={pdfMode}>
             <EditableInput
