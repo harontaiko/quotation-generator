@@ -21,13 +21,14 @@ const Download: FC<Props> = ({ data }) => {
   }, [data])
 
   return (
-    <div className={'download-pdf ' + (!show ? 'loading' : '')} title="Save PDF">
+    <div className={'download-pdf' + (!show ? 'loading' : '')} title="Save PDF">
       {show && (
-        <PDFDownloadLink
+        <PDFDownloadLink className='download-btn'
           document={<InvoicePage pdfMode={true} data={data} />}
           fileName={`${data.invoiceTitle ? data.invoiceTitle.toLowerCase() : 'invoice'}.pdf`}
           aria-label="Save PDF"
-        >Download</PDFDownloadLink>
+        >Download
+        </PDFDownloadLink>
       )}
     </div>
   )
