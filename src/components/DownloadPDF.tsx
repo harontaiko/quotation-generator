@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useState } from 'react'
-import { PDFDownloadLink } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
 import { Invoice } from '../data/types'
 import InvoicePage from './InvoicePage'
 

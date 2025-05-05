@@ -7,7 +7,7 @@
     "@fortawesome/fontawesome-svg-core": "^6.4.2",
     "@fortawesome/free-solid-svg-icons": "^6.4.2",
     "@fortawesome/react-fontawesome": "^0.2.0",
-    "@react-pdf/renderer": "2.1.2",
+    "@react-pdf/renderer": "^2.3.0",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.3.2",
     "@testing-library/user-event": "^7.1.2",
@@ -20,9 +20,10 @@
     "react": "^16.13.1",
     "react-datepicker": "^3.3.0",
     "react-dom": "^16.13.1",
-    "react-scripts": "3.4.1",
+    "react-scripts": "4.0.3",
     "react-textarea-autosize": "^8.2.0",
     "sass": "^1.69.5",
+    "stream": "^0.0.3",
     "typescript": "^4.4.3"
   },
   "scripts": {
@@ -51,7 +52,12 @@
     "@types/date-fns": "^2.6.0",
     "@types/rc-slider": "^8.6.5",
     "@types/react-datepicker": "^3.1.1",
-    "@types/react-textarea-autosize": "^4.3.5"
+    "@types/react-textarea-autosize": "^4.3.5",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.5"
   },
   "resolutions": {
     "@types/react": "17.0.0",
