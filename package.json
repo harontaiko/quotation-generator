@@ -38,8 +38,8 @@
     "deploy-preview": "vercel"
   },
   "engines": {
-    "node": "20.17.0",
-    "npm": ">=11.2.0"
+    "node": "24.x",
+    "npm": ">=11.0.0"
   },
 
   "eslintConfig": {

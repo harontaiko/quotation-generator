@@ -1,6 +1,133 @@
 .app {
   margin: 30px auto 50px auto;
-  width: 700px;
+  width: min(1180px, calc(100% - 32px));
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 700px);
+  gap: 24px;
+  align-items: start;
+  justify-content: center;
+}
+
+.saved-sidebar {
+  position: sticky;
+  top: 24px;
+  padding: 18px;
+  background: #f5f8fb;
+  border: 1px solid #dce5ec;
+  border-radius: 8px;
+  color: #20303d;
+}
+
+.saved-sidebar__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+
+  h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
+  }
+}
+
+.saved-sidebar__eyebrow {
+  margin: 0 0 4px;
+  color: #687b89;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.saved-sidebar__new {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.saved-sidebar__save {
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.saved-sidebar__status,
+.saved-list__empty {
+  margin: 0 0 16px;
+  color: #687b89;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.saved-item {
+  display: flex;
+  align-items: stretch;
+  margin-top: 8px;
+  border-top: 1px solid #dce5ec;
+}
+
+.saved-item__open {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 4px 8px 0;
+  overflow: hidden;
+  color: #20303d;
+  text-align: left;
+  background: transparent;
+}
+
+.saved-item__open:hover {
+  color: #0056b3;
+  background: transparent;
+}
+
+.saved-item__open strong,
+.saved-item__open span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-item__open strong {
+  font-size: 13px;
+}
+
+.saved-item__open span {
+  margin-top: 3px;
+  color: #687b89;
+  font-size: 11px;
+}
+
+.saved-item__delete {
+  align-self: center;
+  margin: 0;
+  padding: 3px 6px;
+  background: transparent;
+  color: #687b89;
+  font-size: 16px;
+}
+
+.saved-item__delete:hover {
+  background: transparent;
+  color: #c0392b;
+}
+
+@media (max-width: 820px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .saved-sidebar {
+    position: static;
+  }
 }
 
 .input,

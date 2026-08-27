@@ -12,17 +12,30 @@
   "build": {
     "env": {
       "NODE_OPTIONS": "--openssl-legacy-provider",
-      "NODE_VERSION": "20.17.0",
-      "NPM_VERSION": "11.2.0"
+      "NODE_VERSION": "24",
+      "NPM_VERSION": "11"
     }
   },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!service-worker\\.js$).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/service-worker.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    },
     {
       "source": "/static/(.*)",
       "headers": [
