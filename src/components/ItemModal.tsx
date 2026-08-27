@@ -13,22 +13,6 @@ const ItemModal: React.FC<ItemModalProps> = ({ selectedCategories, onBack, onDon
   const [itemCategory, setItemCategory] = useState(selectedCategories[0]);
   const [idCounter, setIdCounter] = useState(0);
 
-  const handleAddItem = () => {
-    if (itemName && itemPrice && itemCategory) {
-      const newItem = {
-        id: idCounter,
-        name: itemName,
-        price: parseFloat(itemPrice),
-        category: itemCategory,
-      };
-
-      setItems((prevItems) => [...prevItems, newItem]);
-      setItemName('');
-      setItemPrice('');
-      setIdCounter(idCounter + 1);
-    }
-  };
-
   const handleDoneClick = () => {
     onDone();
   };

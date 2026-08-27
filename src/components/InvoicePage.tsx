@@ -174,7 +174,7 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
         setSelectedProducts([...selectedProducts, selectedProductId]);
       }
     }
-  }, [selectedProductId, selectedProducts]);
+  }, [invoice, myProducts, selectedProductId, selectedProducts]);
 
   return (
     <Document pdfMode={pdfMode}>

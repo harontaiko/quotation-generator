@@ -53,15 +53,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ onCategoriesSelected, onD
     setShowItemModal(false);
   };
 
-  const handleDoneClick = () => {
-    onDone();
-  };
-
-  const handleCategoriesSelected = (categories: string[]) => {
-    onCategoriesSelected(categories);
-    setShowItemModal(false);
-  };
-
   return (
     <div className="modal-container">
       <div className={`category-modal ${showItemModal ? 'hidden' : ''}`}>
@@ -83,7 +74,14 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ onCategoriesSelected, onD
       </div>
 
       {showItemModal && (
-        <ItemModal selectedCategories={selectedCategories}  onBack={onBack} onDone={onDone}/>
+        <ItemModal
+          selectedCategories={selectedCategories}
+          onBack={onBack}
+          onDone={() => {
+            onCategoriesSelected(selectedCategories);
+            onDone();
+          }}
+        />
       )}
     </div>
   );
