@@ -76,7 +76,7 @@ const EditableFileImage: FC<Props> = ({ className, placeholder, value, width, on
     if (value) {
       return (
         <Image
-          style={{...compose(`image ${className ? className : ''}`), maxWidth: width}}
+          style={{ ...compose(`image ${className ? className : ''}`), width: width || 100 }}
           src={value}
         />
       )

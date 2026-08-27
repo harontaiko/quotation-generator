@@ -106,12 +106,42 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
     setInvoice({ ...invoice, productLines })
   }
 
+  const formatNumber = (amount: number) =>
+    new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount)
+
+  const formatAmount = (amount: number) => {
+    const currencyValue = invoice.currency || ''
+    const currency = currencyValue.trim().toUpperCase()
+
+    if (!currency) {
+      return formatNumber(amount)
+    }
+
+    if (/^[A-Z]{3}$/.test(currency)) {
+      try {
+        return new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency,
+          currencyDisplay: 'code',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(amount)
+      } catch {
+      }
+    }
+
+    return `${currencyValue.trim()} ${formatNumber(amount)}`
+  }
+
   const calculateAmount = (quantity: string, rate: string) => {
     const quantityNumber = parseFloat(quantity)
     const rateNumber = parseFloat(rate)
     const amount = quantityNumber && rateNumber ? quantityNumber * rateNumber : 0
 
-    return amount.toFixed(2)
+    return formatAmount(amount)
   }
 
   useEffect(() => {
@@ -336,22 +366,23 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
           </View>
         </View>
 
-        <View className="mt-30 bg-secondary flex">
-        <select
-          value={selectedProductId || ''}
-          onChange={(e) => handleProductSelect(Number(e.target.value))}
-          disabled={pdfMode}
-        >
-          <option value="" disabled>Select a product</option>
-          {myProducts.map((product:any) => (
-            <option key={product.id} value={product.id}>{product.name}</option>
-          ))}
-        </select>
-        <button className='invoice-add-items' onClick={handleGoToProductsModal}>
-                <span className="icon icon-add bg-green mr-10"></span>
-                 New Item 
-              </button>
-        </View>         
+        {!pdfMode && (
+          <View className="mt-30 bg-secondary flex">
+            <select
+              value={selectedProductId || ''}
+              onChange={(e) => handleProductSelect(Number(e.target.value))}
+            >
+              <option value="" disabled>Select a product</option>
+              {myProducts.map((product: any) => (
+                <option key={product.id} value={product.id}>{product.name}</option>
+              ))}
+            </select>
+            <button className="invoice-add-items" onClick={handleGoToProductsModal}>
+              <span className="icon icon-add bg-green mr-10"></span>
+              New Item
+            </button>
+          </View>
+        )}
         <View className="mt-30 bg-dark flex" pdfMode={pdfMode}>
           <View className="w-48 p-4-8" pdfMode={pdfMode}>
             <EditableInput
@@ -388,9 +419,7 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
         </View>
 
         {invoice.productLines.map((productLine, i) => {
-          return pdfMode && productLine.description === '' ? (
-            <Text key={i}></Text>
-          ) : (
+          return pdfMode && productLine.description === '' ? null : (
             <View key={i} className="row flex" pdfMode={pdfMode}>
               <View className="w-48 p-4-8 pb-10" pdfMode={pdfMode}>
                 <EditableTextarea
@@ -457,7 +486,7 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
               </View>
               <View className="w-50 p-5" pdfMode={pdfMode}>
                 <Text className="right bold dark" pdfMode={pdfMode}>
-                  {subTotal?.toFixed(2)}
+                  {typeof subTotal !== 'undefined' ? formatAmount(subTotal) : formatAmount(0)}
                 </Text>
               </View>
             </View>
@@ -471,7 +500,7 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
               </View>
               <View className="w-50 p-5" pdfMode={pdfMode}>
                 <Text className="right bold dark" pdfMode={pdfMode}>
-                  {saleTax?.toFixed(2)}
+                  {typeof saleTax !== 'undefined' ? formatAmount(saleTax) : formatAmount(0)}
                 </Text>
               </View>
             </View>
@@ -486,16 +515,17 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
               </View>
               <View className="w-50 p-5 flex" pdfMode={pdfMode}>
                 <EditableInput
-                  className="dark bold right ml-30"
+                  className="dark bold right currency-input"
                   value={invoice.currency}
                   onChange={(value) => handleChange('currency', value)}
                   pdfMode={pdfMode}
                 />
                 <Text className="right bold dark w-auto" pdfMode={pdfMode}>
-                  {(typeof subTotal !== 'undefined' && typeof saleTax !== 'undefined'
-                    ? subTotal + saleTax
-                    : 0
-                  ).toFixed(2)}
+                  {formatNumber(
+                    typeof subTotal !== 'undefined' && typeof saleTax !== 'undefined'
+                      ? subTotal + saleTax
+                      : 0
+                  )}
                 </Text>
               </View>
             </View>
