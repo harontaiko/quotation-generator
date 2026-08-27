@@ -138,7 +138,13 @@ const styles: CSSClasses = {
 
   logo: {
     display: 'block',
-  }
+  },
+
+  signature__line: {
+    marginTop: '6px',
+    paddingTop: '6px',
+    borderTop: `1px solid ${colorDark2}`,
+  },
 }
 
 export default styles

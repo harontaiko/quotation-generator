@@ -6,14 +6,6 @@
   text-align: center;
 }
 
-.text-responsive{
-  font-size: 45px;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 0.5rem;
-}
-
 .bold {
   font-weight: 600;
 }
@@ -27,9 +19,16 @@
 }
 
 .fs-45 {
-  font-size: 45px;
+  font-size: clamp(30px, 5.4vw, 45px);
+  line-height: 1.1;
 }
 
 .upper {
   text-transform: uppercase;
+}
+
+@media (max-width: $bp-sm) {
+  .document-title {
+    text-align: left;
+  }
 }

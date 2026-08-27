@@ -1,0 +1,98 @@
+// Printing renders only the document sheet, at full page width.
+@media print {
+  body {
+    background: $color-white;
+  }
+
+  .app {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  .app-header,
+  .saved-sidebar,
+  .drawer-scrim,
+  .editor-toolbar,
+  .editor-options,
+  .row__actions,
+  .line-actions,
+  .cell__label,
+  .image__upload,
+  .image__edit,
+  .image__remove {
+    display: none !important;
+  }
+
+  .workspace {
+    display: block;
+  }
+
+  .editor-canvas {
+    display: block;
+  }
+
+  .invoice-wrapper {
+    max-width: none;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .row {
+    display: flex !important;
+    grid-template-columns: none;
+    margin-bottom: 0;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid $color-gray;
+    border-radius: 0;
+    box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .table-head {
+    display: flex !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .row > .cell {
+    padding: 4px 8px 10px;
+  }
+
+  .row > .w-48 {
+    width: 48%;
+  }
+
+  .row > .w-17 {
+    width: 17%;
+  }
+
+  .row > .w-18 {
+    width: 18%;
+  }
+
+  .flex-stack {
+    flex-direction: row;
+  }
+
+  .bg-dark,
+  .bg-gray {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .input,
+  .select,
+  .span,
+  .rate-field__value {
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}

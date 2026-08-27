@@ -1,6 +1,6 @@
-import React, { FC, useState, useEffect } from 'react'
-import { Invoice, ProductLine } from '../data/types'
-import { initialInvoice, initialProductLine } from '../data/initialData'
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react'
+import { DiscountType, DocumentType, Invoice, MyProduct, ProductLine } from '../data/types'
+import { applyDocumentType, initialInvoice, initialProductLine, normalizeInvoice } from '../data/initialData'
 import EditableInput from './EditableInput'
 import EditableSelect from './EditableSelect'
 import EditableTextarea from './EditableTextarea'
@@ -11,6 +11,7 @@ import Document from './Document'
 import Page from './Page'
 import View from './View'
 import Text from './Text'
+import Icon from './Icon'
 import { Font } from '@react-pdf/renderer'
 import Download from './DownloadPDF'
 import format from 'date-fns/format'
@@ -23,18 +24,56 @@ Font.register({
   ],
 })
 
+const currencyOptions = [
+  'KES', 'USD', 'EUR', 'GBP', 'UGX', 'TZS', 'RWF', 'ZAR',
+  'NGN', 'GHS', 'INR', 'AED', 'CAD', 'AUD', 'JPY', 'CNY',
+]
+
 interface Props {
   data?: Invoice
   pdfMode?: boolean
-  categories: string[]; 
+  categories?: string[]
   onChange?: (invoice: Invoice) => void
-  onShowCategoryModal: () => void;
+  onShowCategoryModal: () => void
 }
 
-const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }) => {
-  const [invoice, setInvoice] = useState<Invoice>(data ? { ...data } : { ...initialInvoice })
-  const [subTotal, setSubTotal] = useState<number>()
-  const [saleTax, setSaleTax] = useState<number>()
+const readMyProducts = (): MyProduct[] => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem('myProducts') || '[]')
+    return Array.isArray(stored) ? stored : []
+  } catch (_e) {
+    return []
+  }
+}
+
+const toNumber = (value: string) => {
+  const parsed = parseFloat(value)
+  return isNaN(parsed) ? 0 : parsed
+}
+
+interface ToggleProps {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}
+
+const OptionToggle: FC<ToggleProps> = ({ label, checked, onChange, children }) => (
+  <div className={'option' + (checked ? ' option--on' : '')}>
+    <label className="option__switch">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className="option__track" aria-hidden="true" />
+      <span className="option__label">{label}</span>
+    </label>
+    {checked && children ? <div className="option__body">{children}</div> : null}
+  </div>
+)
+
+const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal, categories }) => {
+  const [invoice, setInvoice] = useState<Invoice>(() =>
+    data ? normalizeInvoice(data) : { ...initialInvoice }
+  )
+  const [showOptions, setShowOptions] = useState<boolean>(false)
+  const [myProducts, setMyProducts] = useState<MyProduct[]>(readMyProducts)
 
   const dateFormat = 'MMM dd, yyyy'
   const invoiceDate = invoice.invoiceDate !== '' ? new Date(invoice.invoiceDate) : new Date()
@@ -46,64 +85,102 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
   if (invoice.invoiceDueDate === '') {
     invoiceDueDate.setDate(invoiceDueDate.getDate() + 30)
   }
-  
-  const handleGoToProductsModal = () => {
-    onShowCategoryModal();
-  };
 
-  const handleChange = (name: keyof Invoice, value: string | number) => {
-    if (name !== 'productLines') {
-      const newInvoice = { ...invoice }
+  // The saved-item catalogue lives in local storage and can be edited in the
+  // items modal, so it is re-read whenever that modal has been used.
+  useEffect(() => {
+    setMyProducts(readMyProducts())
+  }, [categories])
 
-      if (name === 'logoWidth' && typeof value === 'number') {
-        newInvoice[name] = value
-      } else if (name !== 'logoWidth' && typeof value === 'string') {
-        newInvoice[name] = value
-      }
+  const handleChange = useCallback(<K extends keyof Invoice>(name: K, value: Invoice[K]) => {
+    setInvoice((previous) => ({ ...previous, [name]: value }))
+  }, [])
 
-      setInvoice(newInvoice)
-    }
+  const handleDocumentType = (documentType: DocumentType) => {
+    setInvoice((previous) => applyDocumentType(previous, documentType))
   }
 
   const handleProductLineChange = (index: number, name: keyof ProductLine, value: string) => {
-    const productLines = invoice.productLines.map((productLine, i) => {
-      if (i === index) {
+    setInvoice((previous) => ({
+      ...previous,
+      productLines: previous.productLines.map((productLine, i) => {
+        if (i !== index) {
+          return { ...productLine }
+        }
+
         const newProductLine = { ...productLine }
 
         if (name === 'description') {
           newProductLine[name] = value
+        } else if (
+          value === '' ||
+          value[value.length - 1] === '.' ||
+          (value[value.length - 1] === '0' && value.includes('.'))
+        ) {
+          newProductLine[name] = value
         } else {
-          if (
-            value[value.length - 1] === '.' ||
-            (value[value.length - 1] === '0' && value.includes('.'))
-          ) {
-            newProductLine[name] = value
-          } else {
-            const n = parseFloat(value)
-
-            newProductLine[name] = (n ? n : 0).toString()
-          }
+          newProductLine[name] = toNumber(value).toString()
         }
 
         return newProductLine
-      }
-
-      return { ...productLine }
-    })
-
-    setInvoice({ ...invoice, productLines })
+      }),
+    }))
   }
 
-  const handleRemove = (i: number) => {
-    const productLines = invoice.productLines.filter((productLine, index) => index !== i)
-
-    setInvoice({ ...invoice, productLines })
+  const handleRemove = (index: number) => {
+    setInvoice((previous) => ({
+      ...previous,
+      productLines: previous.productLines.filter((_productLine, i) => i !== index),
+    }))
   }
 
   const handleAdd = () => {
-    const productLines = [...invoice.productLines, { ...initialProductLine }]
+    setInvoice((previous) => ({
+      ...previous,
+      productLines: [...previous.productLines, { ...initialProductLine }],
+    }))
+  }
 
-    setInvoice({ ...invoice, productLines })
+  const handleDuplicate = (index: number) => {
+    setInvoice((previous) => {
+      const productLines = [...previous.productLines]
+      productLines.splice(index + 1, 0, { ...productLines[index] })
+      return { ...previous, productLines }
+    })
+  }
+
+  const handleMove = (index: number, direction: -1 | 1) => {
+    setInvoice((previous) => {
+      const target = index + direction
+
+      if (target < 0 || target >= previous.productLines.length) {
+        return previous
+      }
+
+      const productLines = [...previous.productLines]
+      const [moved] = productLines.splice(index, 1)
+      productLines.splice(target, 0, moved)
+
+      return { ...previous, productLines }
+    })
+  }
+
+  const handleProductSelect = (productId: string) => {
+    const product = myProducts.find((item) => String(item.id) === productId)
+
+    if (!product) return
+
+    setInvoice((previous) => ({
+      ...previous,
+      productLines: [
+        ...previous.productLines,
+        {
+          description: product.name,
+          quantity: '1',
+          rate: String(product.price ?? 0),
+        },
+      ],
+    }))
   }
 
   const formatNumber = (amount: number) =>
@@ -136,35 +213,36 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
     return `${currencyValue.trim()} ${formatNumber(amount)}`
   }
 
-  const calculateAmount = (quantity: string, rate: string) => {
-    const quantityNumber = parseFloat(quantity)
-    const rateNumber = parseFloat(rate)
-    const amount = quantityNumber && rateNumber ? quantityNumber * rateNumber : 0
+  const lineAmount = (quantity: string, rate: string) => toNumber(quantity) * toNumber(rate)
 
-    return formatAmount(amount)
-  }
+  const subTotal = useMemo(
+    () =>
+      invoice.productLines.reduce(
+        (total, productLine) => total + lineAmount(productLine.quantity, productLine.rate),
+        0
+      ),
+    [invoice.productLines]
+  )
 
-  useEffect(() => {
-    let subTotal = 0
+  const discount = useMemo(() => {
+    if (!invoice.discountEnabled) return 0
 
-    invoice.productLines.forEach((productLine) => {
-      const quantityNumber = parseFloat(productLine.quantity)
-      const rateNumber = parseFloat(productLine.rate)
-      const amount = quantityNumber && rateNumber ? quantityNumber * rateNumber : 0
+    const value = toNumber(invoice.discountRate)
+    const amount = invoice.discountType === 'percent' ? (subTotal * value) / 100 : value
 
-      subTotal += amount
-    })
+    return Math.min(Math.max(amount, 0), subTotal)
+  }, [invoice.discountEnabled, invoice.discountRate, invoice.discountType, subTotal])
 
-    setSubTotal(subTotal)
-  }, [invoice.productLines])
+  const taxableAmount = subTotal - discount
 
-  useEffect(() => {
-    const match = invoice.taxLabel.match(/(\d+)%/)
-    const taxRate = match ? parseFloat(match[1]) : 0
-    const saleTax = subTotal ? (subTotal * taxRate) / 100 : 0
+  const saleTax = useMemo(
+    () => (invoice.taxEnabled ? (taxableAmount * toNumber(invoice.taxRate)) / 100 : 0),
+    [invoice.taxEnabled, invoice.taxRate, taxableAmount]
+  )
 
-    setSaleTax(saleTax)
-  }, [subTotal, invoice.taxLabel])
+  const shipping = invoice.shippingEnabled ? toNumber(invoice.shippingAmount) : 0
+
+  const total = taxableAmount + saleTax + shipping
 
   useEffect(() => {
     if (onChange) {
@@ -172,46 +250,16 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
     }
   }, [onChange, invoice])
 
-  const getMyProductsFromLocalStorage = () => {
-    const storedMyProducts = JSON.parse(localStorage.getItem('myProducts') || '[]');
-    return storedMyProducts;
-  };
-  
-  const myProducts = getMyProductsFromLocalStorage();
+  const taxRowLabel = `${invoice.taxLabel} (${invoice.taxRate || 0}%)`
+  const discountRowLabel =
+    invoice.discountType === 'percent'
+      ? `${invoice.discountLabel} (${invoice.discountRate || 0}%)`
+      : invoice.discountLabel
 
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
-
-  const handleProductSelect = (productId: number | null) => {
-    setSelectedProductId(productId);
-  };
-
-  useEffect(() => {
-    if (selectedProductId !== null && !selectedProducts.includes(selectedProductId)) {
-      const product = myProducts.find((product: { id: number }) => product.id === selectedProductId);
-      if (product) {
-        const newProductLine = {
-          description: product.name,
-          quantity: '1', 
-          rate: product.price.toString(), 
-        };
-
-        setInvoice({
-          ...invoice,
-          productLines: [...invoice.productLines, newProductLine],
-        });
-
-        setSelectedProducts([...selectedProducts, selectedProductId]);
-      }
-    }
-  }, [invoice, myProducts, selectedProductId, selectedProducts]);
-
-  return (
+  const documentBody = (
     <Document pdfMode={pdfMode}>
       <Page className="invoice-wrapper" pdfMode={pdfMode}>
-        {!pdfMode && <Download data={invoice} />}
-
-        <View className="flex" pdfMode={pdfMode}>
+        <View className="flex flex-stack" pdfMode={pdfMode}>
           <View className="w-50" pdfMode={pdfMode}>
             <EditableFileImage
               className="logo"
@@ -256,8 +304,8 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
           </View>
           <View className="w-50" pdfMode={pdfMode}>
             <EditableInput
-              className="fs-45 right bold"
-              placeholder="Invoice"
+              className="fs-45 right bold document-title"
+              placeholder="Quotation"
               value={invoice.title}
               onChange={(value) => handleChange('title', value)}
               pdfMode={pdfMode}
@@ -265,7 +313,7 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
           </View>
         </View>
 
-        <View className="flex mt-40" pdfMode={pdfMode}>
+        <View className="flex flex-stack mt-40" pdfMode={pdfMode}>
           <View className="w-55" pdfMode={pdfMode}>
             <EditableInput
               className="bold dark mb-5"
@@ -310,7 +358,7 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
               </View>
               <View className="w-60" pdfMode={pdfMode}>
                 <EditableInput
-                  placeholder="INV-12"
+                  placeholder={invoice.documentType === 'invoice' ? 'INV-12' : 'QUO-12'}
                   value={invoice.invoiceTitle}
                   onChange={(value) => handleChange('invoiceTitle', value)}
                   pdfMode={pdfMode}
@@ -366,24 +414,7 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
           </View>
         </View>
 
-        {!pdfMode && (
-          <View className="mt-30 bg-secondary flex">
-            <select
-              value={selectedProductId || ''}
-              onChange={(e) => handleProductSelect(Number(e.target.value))}
-            >
-              <option value="" disabled>Select a product</option>
-              {myProducts.map((product: any) => (
-                <option key={product.id} value={product.id}>{product.name}</option>
-              ))}
-            </select>
-            <button className="invoice-add-items" onClick={handleGoToProductsModal}>
-              <span className="icon icon-add bg-green mr-10"></span>
-              New Item
-            </button>
-          </View>
-        )}
-        <View className="mt-30 bg-dark flex" pdfMode={pdfMode}>
+        <View className="mt-30 bg-dark flex table-head" pdfMode={pdfMode}>
           <View className="w-48 p-4-8" pdfMode={pdfMode}>
             <EditableInput
               className="white bold"
@@ -421,7 +452,8 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
         {invoice.productLines.map((productLine, i) => {
           return pdfMode && productLine.description === '' ? null : (
             <View key={i} className="row flex" pdfMode={pdfMode}>
-              <View className="w-48 p-4-8 pb-10" pdfMode={pdfMode}>
+              <View className="w-48 p-4-8 pb-10 cell" pdfMode={pdfMode}>
+                {!pdfMode && <span className="cell__label">{invoice.productLineDescription}</span>}
                 <EditableTextarea
                   className="dark"
                   rows={2}
@@ -431,7 +463,8 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
                   pdfMode={pdfMode}
                 />
               </View>
-              <View className="w-17 p-4-8 pb-10" pdfMode={pdfMode}>
+              <View className="w-17 p-4-8 pb-10 cell" pdfMode={pdfMode}>
+                {!pdfMode && <span className="cell__label">{invoice.productLineQuantity}</span>}
                 <EditableInput
                   className="dark right"
                   value={productLine.quantity}
@@ -439,7 +472,8 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
                   pdfMode={pdfMode}
                 />
               </View>
-              <View className="w-17 p-4-8 pb-10" pdfMode={pdfMode}>
+              <View className="w-17 p-4-8 pb-10 cell" pdfMode={pdfMode}>
+                {!pdfMode && <span className="cell__label">{invoice.productLineQuantityRate}</span>}
                 <EditableInput
                   className="dark right"
                   value={productLine.rate}
@@ -447,35 +481,88 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
                   pdfMode={pdfMode}
                 />
               </View>
-              <View className="w-18 p-4-8 pb-10" pdfMode={pdfMode}>
+              <View className="w-18 p-4-8 pb-10 cell" pdfMode={pdfMode}>
+                {!pdfMode && (
+                  <span className="cell__label">{invoice.productLineQuantityAmount}</span>
+                )}
                 <Text className="dark right" pdfMode={pdfMode}>
-                  {calculateAmount(productLine.quantity, productLine.rate)}
+                  {formatAmount(lineAmount(productLine.quantity, productLine.rate))}
                 </Text>
               </View>
               {!pdfMode && (
-                <button
-                  className="link row__remove"
-                  aria-label="Remove Row"
-                  title="Remove Row"
-                  onClick={() => handleRemove(i)}
-                >
-                  <span className="icon icon-remove bg-red"></span>
-                </button>
+                <div className="row__actions">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={`Move item ${i + 1} up`}
+                    title="Move up"
+                    disabled={i === 0}
+                    onClick={() => handleMove(i, -1)}
+                  >
+                    <Icon name="arrow-up" />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={`Move item ${i + 1} down`}
+                    title="Move down"
+                    disabled={i === invoice.productLines.length - 1}
+                    onClick={() => handleMove(i, 1)}
+                  >
+                    <Icon name="arrow-down" />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={`Duplicate item ${i + 1}`}
+                    title="Duplicate"
+                    onClick={() => handleDuplicate(i)}
+                  >
+                    <Icon name="copy" />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button icon-button--danger"
+                    aria-label={`Remove item ${i + 1}`}
+                    title="Remove"
+                    disabled={invoice.productLines.length === 1}
+                    onClick={() => handleRemove(i)}
+                  >
+                    <Icon name="trash" />
+                  </button>
+                </div>
               )}
             </View>
           )
         })}
 
-        <View className="flex" pdfMode={pdfMode}>
+        <View className="flex flex-stack totals-row" pdfMode={pdfMode}>
           <View className="w-50 mt-10" pdfMode={pdfMode}>
             {!pdfMode && (
-              <button className="link" onClick={handleAdd}>
-                <span className="icon icon-add bg-green mr-10"></span>
-                Add Line Item
-              </button>
+              <div className="line-actions">
+                <button type="button" className="button button--ghost" onClick={handleAdd}>
+                  <Icon name="plus" />
+                  <span>Add line item</span>
+                </button>
+                {myProducts.length > 0 && (
+                  <select
+                    className="catalogue-picker"
+                    value=""
+                    onChange={(e) => handleProductSelect(e.target.value)}
+                    aria-label="Add a saved item to this document"
+                  >
+                    <option value="">Add from my items…</option>
+                    {myProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} — {product.price}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             )}
           </View>
-          <View className="w-50 mt-20" pdfMode={pdfMode}>
+          <View className="w-50 mt-20 totals" pdfMode={pdfMode}>
             <View className="flex" pdfMode={pdfMode}>
               <View className="w-50 p-5" pdfMode={pdfMode}>
                 <EditableInput
@@ -486,25 +573,95 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
               </View>
               <View className="w-50 p-5" pdfMode={pdfMode}>
                 <Text className="right bold dark" pdfMode={pdfMode}>
-                  {typeof subTotal !== 'undefined' ? formatAmount(subTotal) : formatAmount(0)}
+                  {formatAmount(subTotal)}
                 </Text>
               </View>
             </View>
-            <View className="flex" pdfMode={pdfMode}>
-              <View className="w-50 p-5" pdfMode={pdfMode}>
-                <EditableInput
-                  value={invoice.taxLabel}
-                  onChange={(value) => handleChange('taxLabel', value)}
-                  pdfMode={pdfMode}
-                />
+
+            {invoice.discountEnabled && (
+              <View className="flex" pdfMode={pdfMode}>
+                <View className="w-50 p-5" pdfMode={pdfMode}>
+                  {pdfMode ? (
+                    <Text pdfMode={pdfMode}>{discountRowLabel}</Text>
+                  ) : (
+                    <div className="rate-field">
+                      <EditableInput
+                        value={invoice.discountLabel}
+                        onChange={(value) => handleChange('discountLabel', value)}
+                      />
+                      <input
+                        className="rate-field__value"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={invoice.discountRate}
+                        aria-label="Discount value"
+                        onChange={(e) => handleChange('discountRate', e.target.value)}
+                      />
+                      <span className="rate-field__unit">
+                        {invoice.discountType === 'percent' ? '%' : invoice.currency}
+                      </span>
+                    </div>
+                  )}
+                </View>
+                <View className="w-50 p-5" pdfMode={pdfMode}>
+                  <Text className="right bold dark" pdfMode={pdfMode}>
+                    {`- ${formatAmount(discount)}`}
+                  </Text>
+                </View>
               </View>
-              <View className="w-50 p-5" pdfMode={pdfMode}>
-                <Text className="right bold dark" pdfMode={pdfMode}>
-                  {typeof saleTax !== 'undefined' ? formatAmount(saleTax) : formatAmount(0)}
-                </Text>
+            )}
+
+            {invoice.taxEnabled && (
+              <View className="flex" pdfMode={pdfMode}>
+                <View className="w-50 p-5" pdfMode={pdfMode}>
+                  {pdfMode ? (
+                    <Text pdfMode={pdfMode}>{taxRowLabel}</Text>
+                  ) : (
+                    <div className="rate-field">
+                      <EditableInput
+                        value={invoice.taxLabel}
+                        onChange={(value) => handleChange('taxLabel', value)}
+                      />
+                      <input
+                        className="rate-field__value"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={invoice.taxRate}
+                        aria-label="Tax rate percentage"
+                        onChange={(e) => handleChange('taxRate', e.target.value)}
+                      />
+                      <span className="rate-field__unit">%</span>
+                    </div>
+                  )}
+                </View>
+                <View className="w-50 p-5" pdfMode={pdfMode}>
+                  <Text className="right bold dark" pdfMode={pdfMode}>
+                    {formatAmount(saleTax)}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View className="flex bg-gray p-5" pdfMode={pdfMode}>
+            )}
+
+            {invoice.shippingEnabled && (
+              <View className="flex" pdfMode={pdfMode}>
+                <View className="w-50 p-5" pdfMode={pdfMode}>
+                  <EditableInput
+                    value={invoice.shippingLabel}
+                    onChange={(value) => handleChange('shippingLabel', value)}
+                    pdfMode={pdfMode}
+                  />
+                </View>
+                <View className="w-50 p-5" pdfMode={pdfMode}>
+                  <Text className="right bold dark" pdfMode={pdfMode}>
+                    {formatAmount(shipping)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View className="flex bg-gray p-5 total-line" pdfMode={pdfMode}>
               <View className="w-50 p-5" pdfMode={pdfMode}>
                 <EditableInput
                   className="bold"
@@ -521,11 +678,7 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
                   pdfMode={pdfMode}
                 />
                 <Text className="right bold dark w-auto" pdfMode={pdfMode}>
-                  {formatNumber(
-                    typeof subTotal !== 'undefined' && typeof saleTax !== 'undefined'
-                      ? subTotal + saleTax
-                      : 0
-                  )}
+                  {formatNumber(total)}
                 </Text>
               </View>
             </View>
@@ -542,11 +695,13 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
           <EditableTextarea
             className="w-100"
             rows={2}
+            placeholder="Anything the client should know"
             value={invoice.notes}
             onChange={(value) => handleChange('notes', value)}
             pdfMode={pdfMode}
           />
         </View>
+
         <View className="mt-20" pdfMode={pdfMode}>
           <EditableInput
             className="bold w-100"
@@ -557,13 +712,226 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal }
           <EditableTextarea
             className="w-100"
             rows={2}
+            placeholder="Payment window, validity, warranty…"
             value={invoice.term}
             onChange={(value) => handleChange('term', value)}
             pdfMode={pdfMode}
           />
         </View>
+
+        {invoice.paymentEnabled && (
+          <View className="mt-20" pdfMode={pdfMode}>
+            <EditableInput
+              className="bold w-100"
+              value={invoice.paymentLabel}
+              onChange={(value) => handleChange('paymentLabel', value)}
+              pdfMode={pdfMode}
+            />
+            <EditableTextarea
+              className="w-100"
+              rows={2}
+              placeholder="Bank name, account number, mobile money details…"
+              value={invoice.paymentDetails}
+              onChange={(value) => handleChange('paymentDetails', value)}
+              pdfMode={pdfMode}
+            />
+          </View>
+        )}
+
+        {invoice.signatureEnabled && (
+          <View className="mt-40 flex signature-row" pdfMode={pdfMode}>
+            <View className="w-50" pdfMode={pdfMode} />
+            <View className="w-50 signature" pdfMode={pdfMode}>
+              <EditableInput
+                className="w-100"
+                placeholder="Name of signatory"
+                value={invoice.signatureName}
+                onChange={(value) => handleChange('signatureName', value)}
+                pdfMode={pdfMode}
+              />
+              <View className="signature__line" pdfMode={pdfMode}>
+                <EditableInput
+                  className="w-100 bold"
+                  value={invoice.signatureLabel}
+                  onChange={(value) => handleChange('signatureLabel', value)}
+                  pdfMode={pdfMode}
+                />
+              </View>
+            </View>
+          </View>
+        )}
       </Page>
     </Document>
+  )
+
+  if (pdfMode) {
+    return documentBody
+  }
+
+  return (
+    <div className="editor">
+      <div className="editor-toolbar">
+        <div className="segmented" role="group" aria-label="Document type">
+          <button
+            type="button"
+            className={'segmented__item' + (invoice.documentType === 'quotation' ? ' is-active' : '')}
+            aria-pressed={invoice.documentType === 'quotation'}
+            onClick={() => handleDocumentType('quotation')}
+          >
+            Quotation
+          </button>
+          <button
+            type="button"
+            className={'segmented__item' + (invoice.documentType === 'invoice' ? ' is-active' : '')}
+            aria-pressed={invoice.documentType === 'invoice'}
+            onClick={() => handleDocumentType('invoice')}
+          >
+            Invoice
+          </button>
+        </div>
+
+        <div className="editor-toolbar__summary">
+          <span className="editor-toolbar__count">
+            {invoice.productLines.length} {invoice.productLines.length === 1 ? 'item' : 'items'}
+          </span>
+          <span className="editor-toolbar__total" title="Document total">
+            {formatAmount(total)}
+          </span>
+        </div>
+
+        <div className="editor-toolbar__actions">
+          <button
+            type="button"
+            className={'button button--ghost' + (showOptions ? ' is-active' : '')}
+            aria-expanded={showOptions}
+            onClick={() => setShowOptions((value) => !value)}
+          >
+            <Icon name="settings" />
+            <span>Options</span>
+          </button>
+          <button type="button" className="button button--ghost" onClick={() => window.print()}>
+            <Icon name="print" />
+            <span>Print</span>
+          </button>
+          <Download data={invoice} />
+        </div>
+      </div>
+
+      {showOptions && (
+        <div className="editor-options">
+          <div className="editor-options__grid">
+            <div className="option">
+              <span className="option__label">Currency</span>
+              <div className="option__body">
+                <select
+                  value={currencyOptions.includes(invoice.currency) ? invoice.currency : ''}
+                  aria-label="Currency"
+                  onChange={(e) => handleChange('currency', e.target.value)}
+                >
+                  {!currencyOptions.includes(invoice.currency) && (
+                    <option value="">{invoice.currency || 'Custom'}</option>
+                  )}
+                  {currencyOptions.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <OptionToggle
+              label="Tax / VAT"
+              checked={invoice.taxEnabled}
+              onChange={(checked) => handleChange('taxEnabled', checked)}
+            >
+              <input
+                type="text"
+                value={invoice.taxLabel}
+                aria-label="Tax label"
+                onChange={(e) => handleChange('taxLabel', e.target.value)}
+              />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={invoice.taxRate}
+                aria-label="Tax rate percentage"
+                onChange={(e) => handleChange('taxRate', e.target.value)}
+              />
+            </OptionToggle>
+
+            <OptionToggle
+              label="Discount"
+              checked={invoice.discountEnabled}
+              onChange={(checked) => handleChange('discountEnabled', checked)}
+            >
+              <select
+                value={invoice.discountType}
+                aria-label="Discount type"
+                onChange={(e) => handleChange('discountType', e.target.value as DiscountType)}
+              >
+                <option value="percent">Percent</option>
+                <option value="fixed">Fixed amount</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={invoice.discountRate}
+                aria-label="Discount value"
+                onChange={(e) => handleChange('discountRate', e.target.value)}
+              />
+            </OptionToggle>
+
+            <OptionToggle
+              label="Shipping / other charge"
+              checked={invoice.shippingEnabled}
+              onChange={(checked) => handleChange('shippingEnabled', checked)}
+            >
+              <input
+                type="text"
+                value={invoice.shippingLabel}
+                aria-label="Shipping label"
+                onChange={(e) => handleChange('shippingLabel', e.target.value)}
+              />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={invoice.shippingAmount}
+                aria-label="Shipping amount"
+                onChange={(e) => handleChange('shippingAmount', e.target.value)}
+              />
+            </OptionToggle>
+
+            <OptionToggle
+              label="Payment details"
+              checked={invoice.paymentEnabled}
+              onChange={(checked) => handleChange('paymentEnabled', checked)}
+            />
+
+            <OptionToggle
+              label="Signature block"
+              checked={invoice.signatureEnabled}
+              onChange={(checked) => handleChange('signatureEnabled', checked)}
+            />
+
+            <div className="option">
+              <span className="option__label">My items</span>
+              <div className="option__body">
+                <button type="button" className="button button--ghost" onClick={onShowCategoryModal}>
+                  <Icon name="catalogue" />
+                  <span>Manage saved items</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="editor-canvas">{documentBody}</div>
+    </div>
   )
 }
 
