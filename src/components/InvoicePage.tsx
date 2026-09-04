@@ -452,6 +452,18 @@ const InvoicePage: FC<Props> = ({ data, pdfMode, onChange, onShowCategoryModal, 
         {invoice.productLines.map((productLine, i) => {
           return pdfMode && productLine.description === '' ? null : (
             <View key={i} className="row flex" pdfMode={pdfMode}>
+              {!pdfMode && (
+                <button
+                  type="button"
+                  className="row__remove-button icon-button icon-button--danger"
+                  aria-label={`Remove item ${i + 1}`}
+                  title="Remove row"
+                  disabled={invoice.productLines.length === 1}
+                  onClick={() => handleRemove(i)}
+                >
+                  <Icon name="close" />
+                </button>
+              )}
               <View className="w-48 p-4-8 pb-10 cell" pdfMode={pdfMode}>
                 {!pdfMode && <span className="cell__label">{invoice.productLineDescription}</span>}
                 <EditableTextarea
