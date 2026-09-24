@@ -402,6 +402,11 @@
 
 .download-pdf {
   display: inline-flex;
+  gap: 6px;
+
+  .download-pdf__copies {
+    width: auto;
+  }
 
   &--loading {
     opacity: 0.8;

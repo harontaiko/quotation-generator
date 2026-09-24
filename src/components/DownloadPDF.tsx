@@ -15,8 +15,11 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+const copyOptions = [1, 2, 3, 4, 5]
+
 const Download: FC<Props> = ({ data }) => {
   const [show, setShow] = useState<boolean>(false)
+  const [copies, setCopies] = useState<number>(1)
 
   useEffect(() => {
     setShow(false)
@@ -26,15 +29,29 @@ const Download: FC<Props> = ({ data }) => {
     }, 500)
 
     return () => clearTimeout(timeout)
-  }, [data])
+  }, [data, copies])
 
   const baseName =
     slugify(data.invoiceTitle) ||
     slugify(data.clientName) ||
     (data.documentType === 'invoice' ? 'invoice' : 'quotation')
+  const fileName = copies > 1 ? `${baseName}-${copies}-copies.pdf` : `${baseName}.pdf`
 
   return (
     <div className={'download-pdf' + (!show ? ' download-pdf--loading' : '')}>
+      <select
+        className="download-pdf__copies"
+        value={copies}
+        onChange={(e) => setCopies(Number(e.target.value))}
+        aria-label="Number of copies in the PDF"
+        title="Number of copies in the PDF"
+      >
+        {copyOptions.map((count) => (
+          <option key={count} value={count}>
+            {count === 1 ? '1 copy' : `${count} copies`}
+          </option>
+        ))}
+      </select>
       {show ? (
         <PDFDownloadLink
           className="button button--primary"
@@ -43,10 +60,11 @@ const Download: FC<Props> = ({ data }) => {
               onShowCategoryModal={() => undefined}
               categories={[]}
               pdfMode={true}
+              copies={copies}
               data={data}
             />
           }
-          fileName={`${baseName}.pdf`}
+          fileName={fileName}
           aria-label="Download PDF"
         >
           <Icon name="download" />
