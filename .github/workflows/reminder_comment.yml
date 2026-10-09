@@ -39,7 +39,7 @@ jobs:
                   'You ask your reviewers to trigger select CI tests on top of `fastcheck` CI. \n\n' +
                   'Once the PR is approved and ready to go, your PR reviewer(s) can run CI to test the changes comprehensively before merging.\n\n' +
                   'To run CI, PR reviewers can either: Add `ready` label to the PR or enable auto-merge.\n\n' +
-                  'If you have any questions, please reach out to: demontime@haron.dev' +
+                  'If you have any questions, please reach out to: demontime@haron.dev'
                 });
               } else {
                 console.log(`Skipping comment for ${prAuthor} - not their first PR (${authorPRCount} PRs found)`);
